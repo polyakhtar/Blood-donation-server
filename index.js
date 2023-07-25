@@ -6,11 +6,12 @@ const stripe = require("stripe")('sk_test_51M66GGIo1LJSizd52lmGNVzhlq6Zg9xPhKmCD
 require('dotenv').config();
 const port = process.env.PORT || 5000;
 
-// middleware
+// Middleware
 app.use(cors());
 app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.mjqzqbo.mongodb.net/?retryWrites=true&w=majority`;
+// console.log(uri)
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -18,14 +19,17 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
 async function run() {
   try {
+    await client.connect();
     const donorCollection = client.db('bloodDonor').collection('donor');
     const usersCollection = client.db('bloodDonor').collection('users');
     const approvedDonorCollection = client.db('bloodDonor').collection('approvedDoonr');
     const blogCollection = client.db('bloodDonor').collection('blogCollection');
     const commentCollection = client.db('bloodDonor').collection('comments');
-    const reviewCollection=client.db('bloodDonor').collection('reviews');
+    const reviewCollection = client.db('bloodDonor').collection('reviews');
+    const paymentCollection = client.db('bloodDonor').collection('payments');
 
     app.post('/donor', async (req, res) => {
       const donor = req.body;
@@ -45,7 +49,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/approveddoner', async (req, res) => {
+    app.get('/approveddonor', async (req, res) => {
       const query = {};
       const result = await approvedDonorCollection.find(query).toArray();
       res.send(result);
@@ -63,22 +67,31 @@ async function run() {
       const user = await usersCollection.findOne(query);
       res.send({ isAdmin: user?.role === 'admin' });
     });
-
-    // ===Payment System===
+    // Payment System
     app.post("/create-payment-intent", async (req, res) => {
       const booking = req.body;
       const price = booking.price;
       const amount = price * 100;
       const paymentIntent = await stripe.paymentIntents.create({
-          currency: "usd",
-          amount: amount,
-          payment_method_types: ["card"],
+        currency: "usd",
+        amount: amount,
+        payment_method_types: ["card"],
       });
       res.send({
-          clientSecret: paymentIntent.client_secret,
+        clientSecret: paymentIntent.client_secret,
       });
-  });
+    });
 
+    app.post('/payment', async (req, res) => {
+      const payment = req.body;
+      const result = await paymentCollection.insertOne(payment);
+      res.send(result);
+    });
+    app.get('/payments',async(req,res)=>{
+      const query={};
+      const result=await paymentCollection.find(query).toArray();
+      res.send(result)
+    })
     app.post('/blogs', async (req, res) => {
       const blog = req.body;
       const result = await blogCollection.insertOne(blog);
@@ -108,30 +121,34 @@ async function run() {
       const result = await commentCollection.insertOne(comment);
       res.send(result);
     });
+
     app.get('/comments', async (req, res) => {
       const query = {};
+      const sort = { _id: -1 }; // Sort by the _id field in descending order
+      const result = await commentCollection.find(query).sort(sort).toArray();
+      res.send(result);
+    });
+    app.get('/comments/:blogId', async (req, res) => {
+      const blogId = req.params.blogId;
+      const query = { blogId };
       const result = await commentCollection.find(query).toArray();
+      res.set('Cache-Control', 'no-store'); // Add this line to disable caching
       res.send(result);
     });
-    app.get("/comments/:blogId", async (req, res) => {
-      const blogId=req.params.blogId;
-      const query={blogId};
-      const result=await commentCollection.find(query).toArray();
+    
+    app.post('/reviews', async (req, res) => {
+      const review = req.body;
+      const result = await reviewCollection.insertOne(review);
       res.send(result);
     });
-    app.post('/reviews',async(req,res)=>{
-      const review=req.body;
-      const result=await reviewCollection.insertOne(review);
-      res.send(result)
+
+    app.get('/reviews', async (req, res) => {
+      const query = {};
+      const result = await reviewCollection.find(query).toArray();
+      res.send(result);
     });
-    app.get('/reviews',async(req,res)=>{
-      const query={};
-      const result=await reviewCollection.find(query).toArray();
-      res.send(result)
-    })
-  
-  } finally {
-    // ...
+  } catch (error) {
+    console.log(error);
   }
 }
 
