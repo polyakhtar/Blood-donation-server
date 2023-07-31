@@ -56,11 +56,11 @@ async function run() {
       res.send(result);
     });
 
-    app.post('/users', async (req, res) => {
+    app.post("/users", async (req, res) => {
       const user = req.body;
-      const result = await usersCollection.insertOne(user);
-      res.send(result);
-    });
+      const result=await usersCollection.insertOne(user);
+      res.send(result)
+  });
 
     app.get('/users/admin/:email', async (req, res) => {
       const email = req.params.email;
