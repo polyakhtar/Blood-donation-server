@@ -11,13 +11,10 @@ app.use(cors());
 app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.mjqzqbo.mongodb.net/?retryWrites=true&w=majority`;
-// console.log(uri)
 const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  serverApi: ServerApiVersion.v1,
 });
 
 async function run() {
@@ -61,7 +58,7 @@ async function run() {
       const result=await usersCollection.insertOne(user);
       res.send(result)
   });
-
+  
     app.get('/users/admin/:email', async (req, res) => {
       const email = req.params.email;
       const query = { email };
@@ -151,14 +148,13 @@ async function run() {
   } catch (error) {
     console.log(error);
   }
-}
 
+    app.get('/', (req, res) => {
+      res.send('blood donation api running');
+    });
+
+    app.listen(port, () => {
+      console.log(`blood donation port running on port ${port}`);
+    });
+  } 
 run().catch(console.log);
-
-app.get('/', (req, res) => {
-  res.send('blood donation api running');
-});
-
-app.listen(port, () => {
-  console.log(`blood donation port running on port ${port}`);
-});
